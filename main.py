@@ -2,7 +2,7 @@ from fastapi import FastAPI
 import uvicorn
 import sys
 sys.path.insert(0, 'document_processing/app/api/')
-from controllers import router
+from app.controllers import router
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
