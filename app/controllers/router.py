@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, Header, Form, File, UploadFile, Body
-from services.extracting_answers import extraction, update_answer, insert_file_data , create_supabase_bucket
-from schemas.schema import UploadFileSchema, UserIdFileIdSchema, UpdateExtractionSchema
+from app.services.extracting_answers import extraction, update_answer, insert_file_data , create_supabase_bucket
+from app.schemas.schema import UploadFileSchema, UserIdFileIdSchema, UpdateExtractionSchema
 import boto3
 from botocore.exceptions import NoCredentialsError
 from typing import List
