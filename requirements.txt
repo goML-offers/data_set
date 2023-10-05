@@ -1,0 +1,14 @@
+langchain
+openai
+PyPDF2
+faiss-cpu
+tiktoken
+chromadb
+python-dotenv==1.0.0
+fastapi==0.98.0
+anyio==3.7.0
+uvicorn==0.22.0
+psycopg2
+python-multipart==0.0.6
+supabase==1.1.0
+boto3==1.28.57
