@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
 import sys
-sys.path.insert(0, 'document_processing/app/api/')
+sys.path.insert(0, 'segmentation/app/api/')
 from app.controllers import router
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,7 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router.app,tags=["Solarplexus Document Extraction"])
+app.include_router(router.app,tags=["Solarplexus Segmentation"])
 
 def run_server():
 #    uvicorn.run("main:app", host="http://127.0.0.1:8000/", port=8000, reload=True)
