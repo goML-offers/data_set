@@ -1,17 +1,20 @@
-from fastapi import APIRouter, UploadFile, Header, Form, File, UploadFile, Body
-from app.services.segmentation import segmentation
-from app.schemas.schema import segementcreation
+from fastapi import APIRouter, UploadFile, Header, Form, File, UploadFile, Body, BackgroundTasks
+from app.services.asset_creation import asset_creation
+from app.schemas.schema import assetCreation
 from typing import List
 import os
 import logging
+import multiprocessing
 from datetime import datetime
+import os
+import signal
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
 
 
 
 logger = logging.getLogger(__name__)
-log_file_path = f'/app/app/logs/segmentation_{timestamp}.log'
+log_file_path = f'/app/app/logs/asset_{timestamp}.log'
 file_handler = logging.FileHandler(log_file_path)
 console_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
@@ -23,124 +26,50 @@ logger.setLevel(logging.INFO)
 
 
 app = APIRouter()
-
-# @app.post("/upload/")
-# async def upload_file(
-#     user_id: int = Header(..., convert_underscores=False),  # Get user_id from header
-#     file_type: str = Form(...),
-#     file: UploadFile = File(...),):
-
-#     #upload file in s3 bucket
-#     #table insert the s3 path, file_name, user_name
-#     "push to s3"
-#     "insert into table"
-#     filepath = "s3 path"
-#     return {"user_id": user_id, "file_path": filepath , "file_type" :file_type}
+# segmentation_processes = {}
 
 
+def success_response(data, message="Data retrieved successfully"):
+    return {
+        "status": "success",
+        "message": message,
+        "data": data
+    }
+
+def error_response(message, status="error"):
+    return {
+        "status": status,
+        "message": message
+    }
 
 
 
-# @app.post("/api/brand_guidelines_asset/upload_file/")
-# async def upload_files(
-#     files: List[UploadFile] = File(...),
-#     user_id: str = Body(...),
-#     file_type: str = Body(...),
-#     file_language: str = Body(...)
-#     # file_path: str = Body(...)
-# ):
-
-#     try:
-
-#         uploaded_file_paths = []
-#         # folder_name = 'solarplexus/brand-guidelines-asset'
-#         folder_name = '/brand-guidelines-asset'
-#         print(folder_name)
-#         subfolder_name = f'{user_id}/{file_type}'
-#         print(subfolder_name)
-#         # file_name = file_path
-
-#         # files_name = file_path.split("/")[-1]
-#         # file_name = file.filename
-#         # bucket_path = f"{folder_name}/{subfolder_name}/{files_name}"
-
-#         file_id = None
-#         UPLOAD_DIR = "uploads"
-
-#         if not os.path.exists(UPLOAD_DIR):
-#             os.makedirs(UPLOAD_DIR)
-#         file_path_list = []
-#         file_id_list = []
-#         for file in files:
-#             bucket_path = f"{folder_name}/{subfolder_name}/{file.filename}"
-#             print(bucket_path)
-#             file_p = os.path.join(UPLOAD_DIR, file.filename)
-#             with open(file_p, "wb") as f:
-#                 f.write(file.file.read())
-#             uploaded_file_paths.append(file_p)
-
-#             # print(UPLOAD_DIR)
-
-#             # res = supabase.storage.create_bucket(name)
-
-#             # s3.upload_file(
-#             #     file_name,
-#             #     BUCKET_NAME,
-#             #     f'{folder_name}/{subfolder_name}/{file_name}'
-#             # )
-
-#             uploaded_file = create_supabase_bucket(file_p,bucket_path)
-#             print(uploaded_file)
 
 
-#             # print(f'Successfully uploaded {file_name} to {BUCKET_NAME}/{folder_name}/{subfolder_name}/')
-
-#             s3_file_path = f"{folder_name}/{subfolder_name}/{file.filename}"
-#             file_path_list.append(s3_file_path)
-#             file_id = insert_file_data(s3_file_path, file_type, file_language, user_id)
-#             file_id_list.append(file_id)
-#             # doc = create_supabase_bucket(file_path, user_id, file_type)
-
-#         os.remove(file_p)
-
-
-#         logger.info("inserted file data done")
-
-#         return {"file_paths": uploaded_file_paths, "file_path":f"{folder_name}/{subfolder_name}/{file.filename}", "user_id" : user_id , "file_type": file_type , "file_language": file_language , "file_id" : file_id_list, "files": file_path_list}
-
-#     except Exception as e:
-#         print(e)
-
-@app.post("/api/segmentation/segment_creation/")
-async def segment_data(data: segementcreation):
+@app.post("/api/asset/asset_creation/")
+async def asset_data(data: assetCreation, background_tasks: BackgroundTasks):
     try:
         project_id = data.project_id
         user_id = data.user_id
-        parameters = data.parameters
-        feature_selection = data.feature_selection
+        # parameters = data.parameters
+        table_name = data.table_name
+        file_id_logo = data.file_id_logo
+        file_id_picture_bank_image = data.file_id_picture_bank_image
+        extraction_id_brand_image = data.extraction_id_brand_image
+        extraction_id_tone_of_voice = data.extraction_id_tone_of_voice
 
-        segment = segmentation(project_id, user_id, parameters, feature_selection)
 
-        logger.info("segmentation done")
 
-        return segment
+        background_tasks.add_task(asset_creation, table_name, user_id, project_id, extraction_id_brand_image, extraction_id_tone_of_voice, file_id_logo, file_id_picture_bank_image)
 
+        return "Marketing asset creation started."
+        
     except Exception as e:
-        logger.error(e)
-        return {"error": e}
+        return error_response(str(e))
+
+def check_segmentation_status(segment_id, user_id, project_id):
+    # Implement your logic to check the status (replace this with your real logic)
+    # This example returns a completed status with table_name and segment_id
+    return {"status": "completed", "table_name": f"segment_{user_id}_{project_id}", "segment_id": segment_id}
 
 
-# @app.put("/api/brand_guidelines_asset/update_answer/")
-# async def update_extraction(data: UpdateExtractionSchema):
-#     try:
-#         extract_id = data.extraction_id
-#         user_answer = data.user_answer
-#         extraction_id = update_answer(extract_id, user_answer)
-
-#         logger.info("update extracted data done")
-
-#         return {"message": f"answer updated with ID {extraction_id} updated successfully."}
-
-#     except Exception as e:
-#         logger.error(e)
-#         return {"error": e}
