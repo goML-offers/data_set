@@ -3,23 +3,12 @@ from pydantic import BaseModel, Field, json, Json
 # from pydantic.generics import GenericModel
 
 
-# class UploadFileSchema(BaseModel):
-#     user_id: Optional[int] = None
-#     file_type: str
-#     # folder_id: int
-#     file_language: str
-#     # file_path: str
-#     # org_id : Optional[int] = None
-#     class Config:
-#         orm_mode = True
 
-class segementcreation(BaseModel):
+class assetCreation(BaseModel):
     project_id: int
     user_id: str
-    parameters: dict
-    feature_selection:str
-
-# class UpdateExtractionSchema(BaseModel):
-#     extraction_id: int
-#     question_id : int
-#     user_answer: str
+    extraction_id_brand_image:int
+    extraction_id_tone_of_voice:int
+    table_name:str
+    file_id_logo:int
+    file_id_picture_bank_image:int
