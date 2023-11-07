@@ -1,5 +1,5 @@
 langchain
-openai
+openai==0.27.0
 PyPDF2
 faiss-cpu
 tiktoken
@@ -15,4 +15,15 @@ boto3==1.28.57
 pandas
 scikit-learn
 openpyxl
-sentence-transformers==2.2.2
+xlrd
+psutil
+# torch
+# transformers==4.35.0
+# diffusers==0.21.4
+# accelerate== 0.24.1
+# xformers==0.0.22.post7
+opencv-python
+ghostscript
+colormath
+pillow
+# sentence-transformers==2.2.2
