@@ -4,15 +4,13 @@ import json
 import numpy as np
 import openai 
 # from openai import OpenAI
-# from diffusers import DiffusionPipeline
-# import torch
+#from diffusers import DiffusionPipeline
+#import torch
 from PyPDF2 import PdfReader
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
-from langchain.chat_models import ChatOpenAI
-from langchain.chains import RetrievalQA
 from langchain.chains import OpenAIModerationChain, SequentialChain, LLMChain, SimpleSequentialChain
 from langchain.prompts import PromptTemplate
 from langchain.llms import OpenAI
@@ -28,20 +26,6 @@ import together
 import base64
 import requests
 import ast
-from pdf2image import convert_from_path
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Frame, Paragraph, KeepInFrame
-from reportlab.lib.colors import black, lightgrey
-import re
-from app.services.banner_gen import image_gen, GenBgImage
-from app.services.json_creation import create_custom_json
-from email.mime.multipart import MIMEMultipart
-from email.mime.image import MIMEImage
-import smtplib
-from reportlab.lib.colors import HexColor, lightgrey, black
-import io
 
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
@@ -65,7 +49,8 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 openai.api_key = OPENAI_API_KEY
 
-EMAIL_HOST = 'smtp.gmail.com'
+AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase_bucket = 'solarplexus'
@@ -73,8 +58,6 @@ SUPABASE_HOST= os.environ.get("SUPABASE_HOST")
 SUPABASE_PASSWORD= os.environ.get("SUPABASE_PASSWORD")
 TOGETHER_API_KEY = os.getenv('TOGETHER_API_KEY')
 together.api_key = TOGETHER_API_KEY
-EMAIL_USERNAME = os.getenv('EMAIL_USERNAME')
-EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
 
 
 try:
@@ -106,7 +89,7 @@ def fetch_table_data(table_name):
     return table
 
 
-def generate_text(cluster_description, categorical_description, asset_to_individulize_file, tone_of_voice, industry_seg):
+def generate_text(cluster_description, categorical_description, asset_to_individulize_file, tone_of_voice):
 
     print("generate text")
     if asset_to_individulize_file is not None:
@@ -138,10 +121,9 @@ def generate_text(cluster_description, categorical_description, asset_to_individ
         print("-----faiss")
 
 
-        # chain = load_qa_chain(OpenAI(), chain_type="stuff")
+        chain = load_qa_chain(OpenAI(), chain_type="stuff")
 
-        # llm_answer_list = []
-
+        llm_answer_list = []
 
 
 
@@ -177,116 +159,42 @@ def generate_text(cluster_description, categorical_description, asset_to_individ
 
 
     
-        # ques = f"""Create a content for my marketing newsletter based on the provided customer profile summary of atleast 1500 words in 3 paragraphs: {customer_profile_summary} .
-        # Ensure the content resonates with the specific demographics, industry focus, and company characteristics outlined in the profile. 
-        # The tone should be {tone_of_voice}, aligning with the preferences and expectations of the target audience.
-        # Highlight key benefits and solutions relevant to this unique customer base, emphasizing how our services meet their specific needs and goals.
-        # Also provide a two or three words headline as well based only on the industry of the customer which is {industry_seg} nothing else. The result you will generate should be in dictionary format only strictly having two keys 
-        # summary and headline only having key and value enclosed in double quotes.
-        # follow the example for reference.
-        # for example:""" + """{"summary": "summary of the customer profile", "headline": "headline of the summary"}""" + """
-        # we are makking this text to be appealing to  our customer, think like an entreprenur. give me text response"""
-        
-        # ques = f"""Create a content for my marketing text based on the provided customer profile summary of atleast 1500 words. the customer profile is: {customer_profile_summary}.
-        # The tone of content should be {tone_of_voice}. Also provide a two or three words of headline based only on the industry of the customer which is {industry_seg}, The result you will generate should be in dictionary format only strictly having two keys 
-        # summary and headline only having key and value enclosed in double quotes.
-        # follow the example for reference.
-        # for example:""" + """{"summary": "summary of the customer profile", "headline": "headline of the summary"}""" + """
-        # we are makking this text to be appealing to  our customer, think like an entreprenur. give me text response"""
+        ques = f"""Create a short, engaging marketing text based on the provided customer profile summary: {customer_profile_summary}.
+        Ensure the content resonates with the specific demographics, industry focus, and company characteristics outlined in the profile. 
+        The tone of voice should be {tone_of_voice}, aligning with the preferences and expectations of the target audience.
+        Highlight key benefits and solutions relevant to this unique customer base, emphasizing how our services meet their specific needs and goals.
+        Also provide a two to three words headline as well based on the customer profile and the result you generated should only be in dictionary format strictly having two keys 
+        summary and headline only having key and value enclosed in double quotes.
+        follow the example for reference.
+        for example:""" + """{"summary": "summary of the customer profile", "headline": "headline of the summary"}"""
+
         # ques = f"""convert the result to very short and attractive summary strictly based on the cluster description {cluster_description} and categorical data {categorical_description}, 
         #         make the results proper and different based only on the industry the cluster is focused and the answer should be very clear. The tone of the text
         #         should be in strictly {tone_of_voice} only. Don't give me anything else. The result should be attractive that can be used for marketing campaigns."""
-        ques = f"""Create 1500 words and 3 paragraph long marketting text from given document for industry : {industry_seg} . The tone of text should be {tone_of_voice} which are targetted to {industry_seg} industry""" 
         
-
-
-        # docs = docsearch.similarity_search(ques)
-        # llm_answer = chain.run(input_documents=docs, question=ques)
-
 
 
         docs = docsearch.similarity_search(ques)
-        print(len(docs))
-
-
-        # completion llm
-        llm = ChatOpenAI(
-            openai_api_key=OPENAI_API_KEY,
-            # model_name='gpt-3.5-turbo',
-            model_name='gpt-4',
-            temperature=0.0
-        )
-
-        qa = RetrievalQA.from_chain_type(
-            llm=llm,
-            chain_type="stuff",
-            retriever=docsearch.as_retriever()
-        )
-
-        """print(qa.run(ques))
-        llm_statement = qa.run(ques)"""
-
-
-        answer = ques+ "give me only the answer strictly based on the document provided, don't give me anything else. "
-        llm_answer = qa.run(answer)
+        llm_answer = chain.run(input_documents=docs, question=ques)
 
         print("llm_answer----------->", llm_answer)
-        # llm_json = json.loads(llm_answer)
-        prompt = f"""Summary : {llm_answer} Using provided text create appropiate 2-3 words headline to it,  which are targetted to {industry_seg} industry"""
-
-
-        # Get the completion from the OpenAI API
-        completion = openai.chat.completions.create(
-            # model="gpt-3.5-turbo-0613",
-            model= "gpt-4",
-            # model = "gpt-3.5-turbo-16k",
-            # model="gpt-4-0613",
-            messages=[
-
-                    {"role": "user",
-                        "content": prompt},
-
-                ]
-            )
-
-        # Assuming the API returns a dictionary with the response, extract the intent
-        # Here we're simulating the structure of a typical OpenAI API response
-        api_response = completion.choices[0].message.content
-        print(api_response)
-        api_response = str(api_response)
-
-        # llm_json = json.loads(api_response, strict=False)
-        # llm_json['summary'] = llm_json['text'] +"   " + llm_answer
-        
-        llm_json = {'summary': llm_answer, 'headline': api_response}
-        print(type(llm_json),llm_json)
+        llm_json = json.loads(llm_answer)
 
         return llm_json
     
     else:
         
-        # customer_profile = f"""I have a dataset with categorical and cluster descriptions and I need your help to understand
-        # and summarize the key characteristics of my audience for marketing purposes. Please analyze the following data and 
-        # provide a summary:
-        # {categorical_description} {cluster_description} Based on this information, please provide a summary in only 500 words in 3 paragraphs of the audience profile, 
-        # highlighting key aspects such as demographics, company characteristics, industry focus, technology usage, and any other notable trends. 
-        # This summary will assist in tailoring our marketing strategies effectively.
-        # (Just give summary no other information)
-        # Also provide a two or three words headline only as well based only on the ndustry of the customer which is {industry_seg} nothing else. The result you will generate should be in dictionary format only strictly having two keys 
-        # summary and headline only having key and value enclosed in double quotes.
-        # follow the example for reference.
-        # for example:""" + """{"summary": "summary of the customer profile", "headline": "headline of the summary"}""" + """
-        # we are makking this text to be appealing to  our customer, think like an entreprenur. give me text response"""
-
-
         customer_profile = f"""I have a dataset with categorical and cluster descriptions and I need your help to understand
-        and summarize the key characteristics of my audience for marketing purposes. Please analyze the following data and
+        and summarize the key characteristics of my audience for marketing purposes. Please analyze the following data and 
         provide a summary in 1 paragragph:
-        {categorical_description} {cluster_description} Based on this information, please provide a comprehensive summary of the audience profile,
-        highlighting key aspects such as demographics, company characteristics, industry focus, technology usage, and any other notable trends.
+        {categorical_description} {cluster_description} Based on this information, please provide a comprehensive summary of the audience profile, 
+        highlighting key aspects such as demographics, company characteristics, industry focus, technology usage, and any other notable trends. 
         This summary will assist in tailoring our marketing strategies effectively.
-        (Just give summary no other information)"""
- 
+        (Just give summary no other information)
+        Also provide a two to three words headline as well based on the customer profile and the result you generated should only be in dictionary format strictly having two keys 
+        summary and headline only having key and value enclosed in double quotes.
+        follow the example for reference.
+        for example:""" + """{"summary": "summary of the customer profile", "headline": "headline of the summary"}"""
 
 
         profiling = openai.chat.completions.create(
@@ -308,57 +216,6 @@ def generate_text(cluster_description, categorical_description, asset_to_individ
 
         print("customer_profile_summary--------",customer_profile_summary)
         print(type(customer_profile_summary))
-
-        prompt_summary = f""" For our target customer {customer_profile_summary} create 1500 words and 3 paragraph long marketting text with tone of voice : {tone_of_voice},  which are targetted to {industry_seg} industry """
-
-
-        # Get the completion from the OpenAI API
-        completion_summary = openai.chat.completions.create(
-          model="gpt-4",
-          messages=[
-            {"role": "user", "content":prompt_summary}
-          ]
-        )
-
-        # Assuming the API returns a dictionary with the response, extract the intent
-        # Here we're simulating the structure of a typical OpenAI API response
-        llm_answer = completion_summary['choices'][0]['message']['content']
-        llm_answer = str(llm_answer)
-        
-        # llm_json = json.loads(api_response, strict=False)
-        # llm_json['summary'] = llm_json['text'] 
-
-
-
-        prompt = f"""Summary : {llm_answer} Using provided text create appropiate 2-3 words headline to it,  which are targetted to {industry_seg} industry"""
-
-
-        # Get the completion from the OpenAI API
-        completion = openai.chat.completions.create(
-            # model="gpt-3.5-turbo-0613",
-            model= "gpt-4",
-            # model = "gpt-3.5-turbo-16k",
-            # model="gpt-4-0613",
-            messages=[
-
-                    {"role": "user",
-                        "content": prompt},
-
-                ]
-            )
-
-        # Assuming the API returns a dictionary with the response, extract the intent
-        # Here we're simulating the structure of a typical OpenAI API response
-        api_response = completion.choices[0].message.content
-        print(api_response)
-        api_response = str(api_response)
-
-        # llm_json = json.loads(api_response, strict=False)
-        # llm_json['summary'] = llm_json['text'] +"   " + llm_answer
-        
-        llm_json = {'summary': llm_answer, 'headline': api_response}
-        print(type(llm_json),llm_json)
- 
 
     return customer_profile_summary
 
@@ -407,35 +264,32 @@ def get_extracted_data(extraction_id_brand, extraction_id_tone):
     print("Secondary Color:", secondary_color)
     print("Secondary Font:", secondary_font)
 
-    if extraction_id_tone == None:
-        tone_of_voice = "simple"
+
+    response = supabase.from_("data_extraction").select("*").eq("extraction_id", extraction_id_tone).execute()
+    response_d = [record for record in response.data]
+    if response_d:
+        print(response_d)
+        tone_data = json.dumps(response_d)
+        tone = json.loads(tone_data)
+        tone_llm_answer = tone[0]["llm_answer"]
+
+        print(type(tone_llm_answer))
+        print(tone_llm_answer)
+        tone_answer =  json.loads(tone_llm_answer)
+
+        # Create variables to store answers
+        tone_of_voice = None
+
+        # Process the list of dictionaries
+        for item in tone_answer:
+            question = item['question']
+            answer = item['answer']
+
+            if "tone of voice" in question:
+                tone_of_voice = answer
 
     else:
-        response = supabase.from_("data_extraction").select("*").eq("extraction_id", extraction_id_tone).execute()
-        response_d = [record for record in response.data]
-        if response_d:
-            print(response_d)
-            tone_data = json.dumps(response_d)
-            tone = json.loads(tone_data)
-            tone_llm_answer = tone[0]["llm_answer"]
-
-            print(type(tone_llm_answer))
-            print(tone_llm_answer)
-            tone_answer =  json.loads(tone_llm_answer)
-
-            # Create variables to store answers
-            tone_of_voice = None
-
-            # Process the list of dictionaries
-            for item in tone_answer:
-                question = item['question']
-                answer = item['answer']
-
-                if "tone of voice" in question:
-                    tone_of_voice = answer
-
-        else:
-            tone_of_voice = "simple"
+        tone_of_voice = "simple"
 
     # Print the stored answers
     print("tone of voice:", tone_of_voice)
@@ -566,60 +420,6 @@ def fetch_logo(file_id_log):
         logging.error('An error occurred:', exc_info=True)
 
     return local_file_path
-
-def fetch_useruploaded_image(project_id):
-    group = "asset_image"
-    user = supabase.from_("project_files").select("*").eq("project_id",project_id).eq("group", group).execute()
-
-    user_data = [record for record in user.data]
-
-    if user_data:
-        print("user_data",user_data)
-        data = json.dumps(user_data)
-        d = json.loads(data)
-
-        file_path = d[0]["path"]
-        file_group = d[0]["group"]
-
-
-        try:
-
-
-            local_file_path = f'/app/app/services/{file_path.split("/")[-1]}'
-            print(local_file_path)
-
-            print(file_path)
-            with open(local_file_path, 'wb+') as f:
-                data = supabase.storage.from_(supabase_bucket).download(file_path)
-                f.write(data)
-
-        except Exception as e:
-
-            logging.error('An error occurred:', exc_info=True)
-
-        return local_file_path
-    else:
-        return None    
-
-def fetch_template(project_id):
-    # group = "asset_image"
-    user = supabase.from_("project").select("*").eq("id",project_id).execute()
-
-    user_data = [record for record in user.data]
-
-    if user_data:
-        print("user_data",user_data)
-        data = json.dumps(user_data)
-        d = json.loads(data)
-
-        template = d[0]["template"]
-
-
-        return template
-    else:
-        return "newsletter"    
-
-
 
 
 def fetch_asset_individualize(project_id):
@@ -794,180 +594,6 @@ def combine_text_image(cluster_id, background_image_path, logo_path, asset_to_in
 
 
 
-# def create_pdf(title, content, banner_image, logo_image, output_filename="newsletter.pdf", date="2nd May, 2022"):
-def create_pdf(cluster_id, background_image_path, logo_path, asset_to_individualize, primary_color_rgb, secondary_color_rgb, date="", border_color="black", border_width=3):
-
-    asset_path = f"asset_{cluster_id}.png"
-    asset_pdf = f"asset_{cluster_id}.pdf"
-
-    # # Set up the PDF file
-    # c = canvas.Canvas(asset_pdf, pagesize=letter)
-    # width, height = letter
-    # styles = getSampleStyleSheet()
-
-    # # Draw the background color
-    # c.setFillColor(lightgrey)  # Set to light grey
-    # c.rect(0, 0, width, height, stroke=0, fill=1)
-
-    # # Draw the border
-    # c.setStrokeColor(border_color)
-    # c.setLineWidth(border_width)
-    # c.rect(border_width / 2, border_width / 2, width - border_width, height - border_width, fill=0)
-    # print(type(asset_to_individualize))
-    # # asset_to_individualize = json.dumps(asset_to_individualize)
-
-
-    # formatted_text = asset_to_individualize['summary']
-    # headline = asset_to_individualize['headline']
- 
-    # # Draw the header
-    # c.setFont("Helvetica-Bold", 24)
-    # c.setFillColor(black) 
-    # c.drawCentredString(width / 2, height - 50, headline)
-    # # c.setFont("Helvetica", 10)
-    # # c.drawRightString(width - 50, height - 70, date)
- 
-    # # Insert the banner image
-    # try:
-    #     c.drawImage(background_image_path, 85, height - 280, width=450, height=200)
-    # except Exception as e:
-    #     print(f"An error occurred: {e}")
- 
-    # # Insert the logo image
-    # logo_width = 50
-    # logo_height = 40
-    # c.drawImage(logo_path, width - logo_width - 30, height - logo_height-20, width=logo_width, height=logo_height)
- 
-    # # Format the content text
-    # formatted_text = "<para alignment='justify'>" + formatted_text + "</para>"
-    # story = [Paragraph(formatted_text, styles['Normal'])]
- 
-    # # Define the frame for the text
-    # frame = Frame(50, 50, width - 100, height - 350, leftPadding=0, bottomPadding=0, rightPadding=0, topPadding=0)
- 
-    # # Draw the text into the defined frame
-    # frame.addFromList(story, c)
- 
-    # # Draw the quote at the bottom
-    # c.setFont("Helvetica-Oblique", 18)
-
- 
-    # # Save the PDF
-    # c.save()
-    
-
-    # images = convert_from_path(asset_pdf)
-    # # for i, image in enumerate(images):
-    # images[0].save(asset_path, 'PNG')
-    # print(f"PDF '{asset_path}' created successfully.")
-
-
-
-
-
-
-    # Set up the PDF file
-    c = canvas.Canvas(asset_pdf, pagesize=letter)
-    width, height = letter
-    c = canvas.Canvas(asset_pdf, pagesize=letter)
-    width, height = letter
-    styles = getSampleStyleSheet()
-
-    # Draw the background color
-    c.setFillColor(lightgrey)  # Set to light grey
-    c.rect(0, 0, width, height, stroke=0, fill=1)
-
-    # Draw the border
-    c.setStrokeColor(border_color)
-    c.setLineWidth(border_width)
-    c.rect(border_width / 2, border_width / 2, width - border_width, height - border_width, fill=0)
-
-    formatted_text = asset_to_individualize['summary']
-    headline = asset_to_individualize['headline']
-
-
-
-    # Draw the header (Make sure this is after background and border)
-    c.setFont("Helvetica-Bold", 24)
-    c.setFillColor(black)  # Ensure the title color contrasts with the background
-    c.drawCentredString(width / 2, height - 70, headline)
-    # Draw the header
-
-    c.setFont("Helvetica", 10)
-    c.drawRightString(width - 50, height - 70, date)
-    # Insert the banner image
-    try:
-        c.drawImage(background_image_path, 85, height - 280, width=450, height=200)
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    # Insert the logo image
-    logo_width = 50
-    logo_height = 40
-    c.drawImage(logo_path, width - logo_width, height - logo_height, width=logo_width, height=logo_height)
-    # Format the content text
-
-    styles['Normal'].fontSize += 2
-
-    # Split content into five equal-length paragraphs
-
-    # Truncate content to 500 words
-    sentences = re.split(r'(?<=[.!?]) +', formatted_text)
-
-    # Truncate to 500 words
-    words = ' '.join(sentences).split()
-    if len(words) > 500:
-        content = ' '.join(words[:500])
-        sentences = re.split(r'(?<=[.!?]) +', content)
-
-    # Group sentences into paragraphs
-    paragraphs = []
-    para = ""
-    for sentence in sentences:
-        if len(para.split()) + len(sentence.split()) <= 100:  # Assuming ~100 words per paragraph
-            para += (' ' if para else '') + sentence
-        else:
-            paragraphs.append(para)
-            para = sentence
-    if para:
-        paragraphs.append(para)  # Add the last paragraph
-
-    # Join paragraphs with line breaks
-    formatted_content = "<br/><br/>".join(paragraphs)
-
-    # Create a single Paragraph object with the formatted content
-    story = [Paragraph(formatted_content, styles['Normal'])]
-
-
-    # Define the frame for the text (without boundary)
-    frame = Frame(70, 70, width - 100, height - 350)
-
-    # Use KeepInFrame to ensure content fits in the frame
-    kf = KeepInFrame(width - 100, height - 350, story)
-
-    # Draw the text into the defined frame
-    try:
-        frame.addFromList([kf], c)
-    except Exception as e:
-        print(f"Error adding content to frame: {e}")
-    # c.setFont("Helvetica-Bold", 24)
-    # c.drawCentredString(width / 2, height - 50, title)
-    
-    # Save the PDF
-    c.save()
-    images = convert_from_path(asset_pdf)
-    # for i, image in enumerate(images):
-    images[0].save(asset_path, 'PNG')
-    print(f"PDF '{asset_path}' created successfully.")
-
-    return asset_path
-
-
-
- 
-
-# create_pdf(1, "/Users/kisazehra/Documents/solarplexus/solarplexus-collateral_generation-test/app/services/background_image_path_0.jpg", "/Users/kisazehra/Documents/solarplexus/app/docs/Solarplexus_logo.png", {"summary": "Projectplace offers small to medium-sized organizations the security and reliability they need to embrace new approaches, with top-notch support and a professional package that keeps business risks to a minimum. Leaders of a social organisation need to be social, open, flexible and transparent in order for a transformation to a social organisation to succeed.", "headline": "Secure Business Transformation"}, "(235, 105, 27)", "(75, 75, 75)")
-
-
 
 def marketing_image_creation(cluster_id, cluster_description, categorical_description, primary_color_rgb, secondary_color_rgb):
     prompt = f"""generate a marketing asset image for a brand , to target big industries, 
@@ -995,24 +621,6 @@ def CreateCustomerProfile(categorical_description, cluster_description):
                 Based on this information, please provide a comprehensive summary of the audience profile, highlighting key aspects such as demographics, company characteristics, industry focus, technology usage, and any other notable trends. This summary will assist in tailoring our marketing strategies effectively.
                 (Just give summary no other information)
                 Summary: """
-
-
-    # Get the completion from the OpenAI API
-    completion = openai.chat.completions.create(
-      model="gpt-4",
-      messages=[
-        {"role": "user", "content":prompt}
-      ]
-    )
-
-    # Assuming the API returns a dictionary with the response, extract the intent
-    # Here we're simulating the structure of a typical OpenAI API response
-    # api_response = completion['choices'][0]['message']['content'].strip().split('\n')
-    api_response = completion.choices[0].message.content.strip().split('\n')
-    return api_response
-
-def GetIndustrySeg(customer_profile):
-    prompt = f"""detect the industries that this customer works in {customer_profile}, just give me industries name nothing else if there is no industries detected give me just 1-2 words that describes my customer"""
 
 
     # Get the completion from the OpenAI API
@@ -1112,32 +720,32 @@ def CreateImageGenPrompts(customer_profile, multiple=False):
 
 
 
-def GenBgImage(project_id, ImagePrompt=["realistic desert background"]):
+def GenPictureBank(project_id, ImageGenPrompts=["A professional enviorment"]):
 
 
   # generate image 
     image_path = f'/app/app/services/{project_id}.png'
 
     print("Image_pathhhhhhhhhh", image_path)
+    ImageBankByte = []
+    for ImagePrompt in ImageGenPrompts:
+        print("for loop", ImagePrompt)
+        response = together.Image.create(model = "SG161222/Realistic_Vision_V3.0_VAE",
+                                        prompt=ImagePrompt)
+
+        # ImageByte = _ImageBankByte[0]...
+        print(response)
+        ImageBankByte.append(response["output"]["choices"][0])
+        print(ImageBankByte)
 
 
-    print("Prompt : ", ImagePrompt)
-    response = together.Image.create(model = "SG161222/Realistic_Vision_V3.0_VAE",
-                                    prompt=f"realistic {ImagePrompt} background", width=1792, height=1024)
-
-    # ImageByte = _ImageBankByte[0]...
-    print(response)
-    image_byte = response["output"]["choices"][0]
-   
-
-
-
-    print(image_byte)
-    print("image_byte['image_base64']:    ", image_byte["image_base64"])
-    with open(image_path, "wb") as f:
-        f.write(base64.b64decode(image_byte["image_base64"]))
+        image_byte = ImageBankByte[0]
+        print(image_byte)
+        print("image_byte['image_base64']:    ", image_byte["image_base64"])
+        with open(image_path, "wb") as f:
+            f.write(base64.b64decode(image_byte["image_base64"]))
+            print(image_path)
         print(image_path)
-    print(image_path)
 
 
     return image_path 
@@ -1172,20 +780,6 @@ def generate_and_save_image(customer_profile, text_color_primary, text_color_sec
         with open(image_path, 'wb') as file:
             file.write(response.content)
  
-
-def image_to_base64_with_prefix(image_path):
-
-    with Image.open(image_path) as image:
-        buffered = io.BytesIO()
-        image_format = image.format
-        image.save(buffered, format=image_format)
-        img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
-
-        # Adding the appropriate prefix based on the image format
-        prefix = f"data:image/{image_format.lower()};base64,"
-        return prefix + img_str
-
-
 
 
 
@@ -1295,17 +889,7 @@ def asset_creation(table_name, user_id, project_id, extraction_id_brand, extract
         #     print(categorical_description)
 
             # print(f"Cluster Name: {cluster_id} {cluster_description} {categorical_description}")
-            cust_profile = CreateCustomerProfile(categorical_description,cluster_description)
-            print(cust_profile)
-            industry_seg = GetIndustrySeg(cust_profile)
-
-
-
-            print("asset_to_individulize_file:", asset_to_individulize_file)
             
-            asset_text = generate_text(cluster_description, categorical_description, asset_to_individulize_file, tone_of_voice, industry_seg)
-            
-            print("asset_text", asset_text)
 
 
             # if file_type == 'picture_bank':
@@ -1313,33 +897,16 @@ def asset_creation(table_name, user_id, project_id, extraction_id_brand, extract
 
                 background_image_path = fetch_background_image(file_id_background_image)
 
-                bucket_path_background_image_path = f"/asset/{user_id}/{project_id}/background_image_path_{cluster_id}.jpg"
-
-                with open(background_image_path, 'rb') as f:
-                    supabase.storage.from_(supabase_bucket).upload(file=f,path=bucket_path_background_image_path)
-
-
             else:
                 # background_image_path = marketing_image_creation(cluster_id, cluster_description, categorical_description, primary_color_rgb, secondary_color_rgb)
                 # GenPictureBank
                 print("elseeeee")
-
-                """image_prompts = CreateImageGenPrompts(cust_profile, multiple=True)
+                cust_profile = CreateCustomerProfile(categorical_description,cluster_description)
+                print(cust_profile)
+                image_prompts = CreateImageGenPrompts(cust_profile, multiple=True)
                 print(image_prompts)
-                background_image_path = GenPictureBank(project_id,image_prompts)"""
-                useruploaded_image_path = fetch_useruploaded_image(project_id)
-                if useruploaded_image_path:
-                    background_image_path = GenBgImage(project_id=project_id,industry = industry_seg)
-                    print(background_image_path)
-                else:
-                    background_image_path = image_gen(industry_seg, primary_color_rgb, secondary_color_rgb, project_id, asset_text['headline'])
-                    print(background_image_path)
-
-                print("background_image_path", background_image_path)
-                # bucket_path_background_image_path = f"/asset/{user_id}/{project_id}/background_image_path_{cluster_id}.jpg"
-
-                # with open(background_image_path, 'rb') as f:
-                #     supabase.storage.from_(supabase_bucket).upload(file=f,path=bucket_path_background_image_path)
+                background_image_path = GenPictureBank(project_id,image_prompts)
+                print(background_image_path)
 
                                 # Example usage
                 # customer_profile = "YOUR_CUSTOMER_PROFILE"
@@ -1347,36 +914,20 @@ def asset_creation(table_name, user_id, project_id, extraction_id_brand, extract
                 # image_path = "YOUR_IMAGE_PATH.png"
                 
                 """background_image_path = generate_and_save_image(cust_profile, primary_color_rgb, secondary_color_rgb, project_id)"""
-                bucket_path_background_image_path = f"/asset/{user_id}/{project_id}/background_image_path_{cluster_id}.jpg"
-
-                bucket_path_background_image_path = f"/asset/{user_id}/{project_id}/background_image_path_{cluster_id}.jpg"
-
-                with open(background_image_path, 'rb') as f:
-                    supabase.storage.from_(supabase_bucket).upload(file=f,path=bucket_path_background_image_path)
             
             
 
-            # print("asset_to_individulize_file:", asset_to_individulize_file)
+            print("asset_to_individulize_file:", asset_to_individulize_file)
             
-            # asset_text = generate_text(cluster_description, categorical_description, asset_to_individulize_file, tone_of_voice, industry_seg)
+            asset_text = generate_text(cluster_description, categorical_description, asset_to_individulize_file, tone_of_voice)
             
-            # print("asset_text", asset_text)
+            print("asset_text", asset_text)
 
 
 
-            # local_asset_path = combine_text_image(cluster_id, background_image_path, logo_path, asset_text, primary_color_rgb, secondary_color_rgb)
-            # local_asset_path = create_pdf(cluster_id, background_image_path, logo_path, asset_text, primary_color_rgb, secondary_color_rgb)
-            formatted_text = asset_text['summary']
-            headline = asset_text['headline']
-            template = fetch_template(project_id)
-            user_uploaded_image_path = fetch_useruploaded_image(project_id)
-            local_asset_path = create_custom_json(cluster_id=cluster_id,header=headline,body_text=formatted_text,banner_image=background_image_path,logo_image=logo_path, user_uploaded_image=user_uploaded_image_path,template=template)
-            
-
-
-
+            local_asset_path = combine_text_image(cluster_id, background_image_path, logo_path, asset_text, primary_color_rgb, secondary_color_rgb)
             print("local_asset_path", local_asset_path)
-            bucket_path = f"/asset/{user_id}/{project_id}/segment_{cluster_id}.json"
+            bucket_path = f"/asset/{user_id}/{project_id}/asset_{cluster_id}.jpg"
 
                     # print("Bucket Pathhhhhhhhhhhhhhh", bucket_path)
             with open(local_asset_path, 'rb') as f:
@@ -1391,8 +942,7 @@ def asset_creation(table_name, user_id, project_id, extraction_id_brand, extract
                         {
                             "user_id" :user_id,
                             "project_id": project_id,
-                            "asset_json_path": bucket_path,
-                            "background_image_path" : bucket_path_background_image_path
+                            "asset_path": bucket_path
                         },
                     ]
 
@@ -1438,6 +988,7 @@ def asset_creation(table_name, user_id, project_id, extraction_id_brand, extract
         return {"error": e, "status":"error"}
 
 
+
 def send_email_with_image(to_email, subject, image_path,filename):
     msg = MIMEMultipart()
     msg['From'] = EMAIL_USERNAME
@@ -1445,7 +996,7 @@ def send_email_with_image(to_email, subject, image_path,filename):
     msg['Subject'] = subject
 
 
-    url = supabase.storage.from_('solarplexus').get_public_url(image_path)
+    url = supabase_client.storage.from_('solarplexus').get_public_url(image_path)
 
     response = requests.get(url)
     img_file =response.content
@@ -1465,27 +1016,3 @@ def send_email_with_image(to_email, subject, image_path,filename):
 
     except:
         return "Error in sending image to mail"
-
-
-
-
-def total_assets(table_name):
-    table = fetch_table_data(table_name)
-    # Convert the data to a Pandas DataFrame
-    df = pd.DataFrame(table)
-
-
-
-
-    # Group the data by the cluster column
-    cluster_column = "Cluster"
-
-    grouped_clusters = df.groupby(cluster_column)
-
-    total_clusters = grouped_clusters.ngroups
-
-    print(f"Total number of clusters: {total_clusters}")
-
-    return f" Total numbers of assets to be generated are: {total_clusters}"
-
-# total_assets("segment_47b0ffec-356a-4c35-8704-23b153d345c5_1477")

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, Header, Form, File, UploadFile, Body, BackgroundTasks
-from app.services.asset_creation import asset_creation, total_assets, send_email_with_image
-from app.schemas.schema import assetCreation, totalAsset
+from app.services.asset_creation import asset_creation
+from app.schemas.schema import assetCreation
 from typing import List
 import os
 import logging
@@ -77,23 +77,6 @@ def check_segmentation_status(segment_id, user_id, project_id):
 
 
 
-@app.post("/api/asset/total_assets/")
-async def total_asset(data: totalAsset):
-    try:
-        table_name = data.table_name
-
-        
-        # api_response = {"project_id": data.project_id, "user_id": data.user_id, "segment_id":data.segment_id, "file_group":data.file_group}
-
-
-        asset = total_assets(table_name)
-        return asset
-
-    except Exception as e:
-        return error_response(str(e))
-
-
-
 
 # Function to send email with image attachment
 @app.post("/api/asset/send-image")
@@ -102,4 +85,5 @@ async def send_email_with_image(to_email, subject, image_path,filename):
     response = send_email_with_image(to_email, subject, image_path,filename)
 
     return response
+
 

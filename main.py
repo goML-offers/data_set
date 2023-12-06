@@ -16,7 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router.app,tags=["Solarplexus Segmentation"])
+app.include_router(router.app,tags=["Solarplexus Marketing & Communication Assets Creation"])
 
 def run_server():
 #    uvicorn.run("main:app", host="http://127.0.0.1:8000/", port=8000, reload=True)

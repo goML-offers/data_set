@@ -1,5 +1,6 @@
 langchain
-openai==0.27.0
+#openai==0.27.0
+openai==1.2.4
 PyPDF2
 faiss-cpu
 tiktoken
@@ -26,4 +27,7 @@ opencv-python
 ghostscript
 colormath
 pillow
+together
+reportlab
+pdf2image
 # sentence-transformers==2.2.2
